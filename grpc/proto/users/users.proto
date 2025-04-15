@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+option go_package = "../user";
+
+package user;
+
+service User {
+  rpc Detail(DetailRequest) returns (DetailResponse);
+}
+
+message DetailRequest {
+  string token = 1;
+}
+
+message DetailResponse {
+  string user_uuid = 1;
+  string role = 2;
+}

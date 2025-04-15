@@ -1,0 +1,12 @@
+version: "2"
+services:
+  app:
+    container_name: DATN-cms-customer
+    build:
+      context: .
+      dockerfile: .docker/Dockerfile-dev
+    volumes:
+      - ./:/go/src/github.com/anhhuy1010/DATN-cms-customer
+    ports:
+      - 7002:7002
+      - 9002:9002

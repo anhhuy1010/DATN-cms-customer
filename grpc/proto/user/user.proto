@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option go_package = "../user";
+
+package user;
+
+service User {
+  rpc List(ListRequest) returns (ListResponse);
+}
+
+message ListRequest {
+}
+
+message ListResponse {
+  repeated DetailResponse users = 1;
+}
+
+message DetailResponse {
+  string uuid = 1;
+  string username = 2;
+  int32 is_active = 3;
+}
+

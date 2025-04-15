@@ -1,0 +1,52 @@
+definitions:
+  respond.PaginationResponse:
+    properties:
+      items: {}
+      limit:
+        type: string
+      page:
+        type: integer
+      pages:
+        type: integer
+      total:
+        type: integer
+    type: object
+info:
+  contact: {}
+paths:
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: Get list users
+      parameters:
+      - in: query
+        name: is_active
+        required: true
+        type: integer
+      - in: query
+        name: keyword
+        type: string
+      - in: query
+        name: limit
+        type: integer
+      - in: query
+        name: page
+        type: integer
+      - in: query
+        name: sort
+        type: string
+      - in: query
+        name: username
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PaginationResponse'
+      summary: Get list users test ss
+      tags:
+      - users
+swagger: "2.0"

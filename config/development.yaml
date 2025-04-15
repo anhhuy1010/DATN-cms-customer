@@ -1,0 +1,23 @@
+env:
+  mode: debug
+
+server:
+  port: 7003
+  grpc_port: 9003
+  locale: 'en'
+  timezone: UTC
+  secret_key: 249570c35fd39ad16084f241b276f1c129fe4b610022f7a352d445ce97898a45
+  secret_token: s3cr3tt0k3n
+
+database:
+  host: imatch.knntasg.mongodb.net
+  port: 70
+  username: tranbaoanhhuy
+  password: "tranbaoanhhuy"
+  db_name: Customer
+  ssl: true
+
+auth:
+  key: 1q2w3e4r5t
+grpc:
+
