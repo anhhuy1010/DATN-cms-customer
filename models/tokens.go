@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/anhhuy1010/DATN-cms-customer/database"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	//"go.mongodb.org/mongo-driver/bson"
@@ -73,4 +74,10 @@ func (u *Tokens) Insert() (interface{}, error) {
 	}
 
 	return resp, nil
+}
+
+func (t *Tokens) UpdateOne(condition, update bson.M) error {
+	collection := database.GetInstance().Collection("tokens")
+	_, err := collection.UpdateOne(context.Background(), condition, update)
+	return err
 }

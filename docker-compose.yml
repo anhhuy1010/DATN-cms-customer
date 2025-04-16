@@ -8,5 +8,5 @@ services:
     volumes:
       - ./:/go/src/github.com/anhhuy1010/DATN-cms-customer
     ports:
-      - 7002:7002
-      - 9002:9002
+      - 7003:7003
+      - 9003:9003

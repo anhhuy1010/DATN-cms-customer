@@ -27,18 +27,20 @@ func RouteInit(engine *gin.Engine) {
 
 	// ❌ Không có RoleMiddleware ở đây
 	// Các route không cần xác thực
-	apiV1.POST("/admin/login", userCtr.Login)
+	apiV1.POST("/customer/login", userCtr.Login)
+	apiV1.POST("/customer/sign", userCtr.SignUp)
 
 	// ✅ Các route cần xác thực nằm trong group này
 	protected := apiV1.Group("/")
 	protected.Use(controllers.RoleMiddleware())
 	{
-		protected.GET("/admin", userCtr.List)
-		protected.GET("/admin/:uuid", userCtr.Detail)
-		protected.POST("/admin", userCtr.Create)
-		protected.PUT("/admin/:uuid", userCtr.Update)
-		protected.PUT("/admin/:uuid/update-status", userCtr.UpdateStatus)
-		protected.DELETE("/admin/:uuid", userCtr.Delete)
+		protected.GET("/customer", userCtr.List)
+		protected.GET("/customer/:uuid", userCtr.Detail)
+		protected.POST("/customer", userCtr.Create)
+		protected.PUT("/customer/:uuid", userCtr.Update)
+		protected.PUT("/customer/:uuid/update-status", userCtr.UpdateStatus)
+		protected.DELETE("/customer/:uuid", userCtr.Delete)
+		protected.POST("/customers/logout", userCtr.Logout)
 	}
 
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))

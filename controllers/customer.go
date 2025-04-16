@@ -98,6 +98,30 @@ func (userCtl UserController) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, respond.Success(request.LoginResponse{Token: token}, "login successfully"))
 }
 
+//////////////////////////////////////////////////////////////////////
+
+func (userCtl UserController) Logout(c *gin.Context) {
+	// Lấy token từ header
+	tokenStr := c.GetHeader("x-token")
+	if tokenStr == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token required"})
+		return
+	}
+
+	// Xóa token khỏi CSDL
+	tokens := models.Tokens{}
+	condition := bson.M{"token": tokenStr, "is_delete": 0}
+	update := bson.M{"$set": bson.M{"is_delete": 1}}
+
+	err := tokens.UpdateOne(condition, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Logout failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+}
+
 ////////////////////////////////////////////////////////////////////////////
 
 func (userCtl UserController) CheckRole(token string) (*pbUsers.DetailResponse, error) {
@@ -154,14 +178,9 @@ func RoleMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("userRole", resp.Userrole)
-		c.Set("userUuid", resp.UserUuid)
-
-		if resp.Userrole != "admin" && c.Request.Method != http.MethodGet {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-			c.Abort()
-			return
-		}
+		c.Set("startday", resp.StartDay)
+		c.Set("endday", resp.EndDay)
+		c.Set("user_uuid", resp.UserUuid)
 		c.Next()
 	}
 }
