@@ -9,6 +9,7 @@ import (
 
 type GrpcService struct {
 	UsersConnect *grpc.ClientConn
+	IdeasConnect *grpc.ClientConn
 }
 
 var grpcService *GrpcService
@@ -29,6 +30,9 @@ func (sv *GrpcService) NewService() (*GrpcService, error) {
 			}
 			if k == "users" {
 				sv.UsersConnect = conn
+			}
+			if k == "idea" {
+				sv.IdeasConnect = conn
 			}
 		}
 		grpcService = sv

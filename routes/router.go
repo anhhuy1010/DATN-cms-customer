@@ -34,6 +34,7 @@ func RouteInit(engine *gin.Engine) {
 	protected := apiV1.Group("/")
 	protected.Use(controllers.RoleMiddleware())
 	{
+		// protected.GET("/customer", userCtr.List)
 		protected.GET("/customer", userCtr.List)
 		protected.GET("/customer/:uuid", userCtr.Detail)
 		protected.POST("/customer", userCtr.Create)

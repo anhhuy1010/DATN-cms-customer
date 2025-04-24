@@ -10,8 +10,11 @@ import (
 	"github.com/anhhuy1010/DATN-cms-customer/constant"
 	"github.com/anhhuy1010/DATN-cms-customer/grpc"
 	pbUsers "github.com/anhhuy1010/DATN-cms-customer/grpc/proto/users"
+	pbIdeas "github.com/anhhuy1010/DATN-cms-ideas/grpc/proto/idea"
+
 	"github.com/anhhuy1010/DATN-cms-customer/helpers/respond"
 	"github.com/anhhuy1010/DATN-cms-customer/helpers/util"
+	"github.com/anhhuy1010/DATN-cms-customer/middleware"
 	"github.com/anhhuy1010/DATN-cms-customer/models"
 	request "github.com/anhhuy1010/DATN-cms-customer/request/user"
 	"github.com/gin-gonic/gin"
@@ -405,4 +408,57 @@ func (userCtl UserController) Create(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, respond.Success(userData.Uuid, "create successfully"))
+}
+
+func (userCtl UserController) PostIdea(ctx *gin.Context) {
+	var req struct {
+		IdeasName     string `json:"ideas_name"`
+		Industry      string `json:"industry"`
+		ContentDetail string `json:"content_detail"`
+		Price         int32  `json:"price"`
+	}
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
+		return
+	}
+
+	// Lấy claims từ middleware
+	claims, ok := middleware.ExtractClaims(ctx)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Không xác thực được người dùng"})
+		return
+	}
+	customerUuid, _ := claims["uuid"].(string)
+	customerName, _ := claims["name"].(string)
+	customerEmail, _ := claims["email"].(string)
+
+	if customerUuid == "" || customerName == "" || customerEmail == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu thông tin người dùng trong token"})
+		return
+	}
+
+	// Gọi gRPC
+	grpcConn := grpc.GetInstance()
+	client := pbIdeas.NewIdeaServiceClient(grpcConn.IdeasConnect)
+
+	res, err := client.CreateIdea(context.Background(), &pbIdeas.CreateIdeaRequest{
+		IdeasName:     req.IdeasName,
+		Industry:      req.Industry,
+		ContentDetail: req.ContentDetail,
+		Price:         req.Price,
+		CustomerUuid:  customerUuid,
+		CustomerName:  customerName,
+		CustomerEmail: customerEmail,
+	})
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": res.Message,
+		"uuid":    res.Uuid,
+	})
 }
