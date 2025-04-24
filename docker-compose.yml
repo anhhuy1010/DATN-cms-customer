@@ -1,4 +1,5 @@
-version: "2"
+version: '3.8'
+
 services:
   app:
     container_name: DATN-cms-customer
@@ -10,3 +11,19 @@ services:
     ports:
       - 7003:7003
       - 9003:9003
+    networks:
+      - datn_net
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok-tunnel
+    volumes:
+      - ./ngrok.yml:/etc/ngrok.yml
+    command: [ "start", "--config", "/etc/ngrok.yml", "--log", "stdout", "--all" ]
+    depends_on:
+      - app
+    networks:
+      - datn_net
+
+networks:
+  datn_net:

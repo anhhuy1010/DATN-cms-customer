@@ -20,4 +20,7 @@ database:
 auth:
   key: 1q2w3e4r5t
 grpc:
+  ideas:
+    host: host.docker.internal
+    port: 9004
 
