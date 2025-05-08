@@ -22,6 +22,7 @@ type Customer struct {
 	Email    string     `json:"email,omitempty" bson:"email"`
 	IsActive int        `json:"is_active" bson:"is_active"`
 	IsDelete int        `json:"is_delete" bson:"is_delete"`
+	Image    string     `json:"image" bson:"image"`
 	StartDay *time.Time `json:"startday" bson:"startday"`
 	EndDay   *time.Time `json:"endday" bson:"endday"`
 }
@@ -196,4 +197,13 @@ func (u *Customer) HashPassword() error {
 	}
 	u.Password = string(hashedPassword)
 	return nil
+}
+func (u *Customer) FindCustomerByEmail(ctx context.Context, email string) (*Customer, error) {
+	coll := u.Model()
+	var customer Customer
+	err := coll.FindOne(ctx, map[string]interface{}{"email": email}).Decode(&customer)
+	if err != nil {
+		return nil, err
+	}
+	return &customer, nil
 }
