@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"time"
 
 	"github.com/anhhuy1010/DATN-cms-customer/constant"
 	"github.com/anhhuy1010/DATN-cms-customer/grpc"
@@ -34,19 +35,20 @@ func (userCtl UserController) SignUp(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, respond.MissingParams())
 		return
 	}
+
 	customerSignup := models.Customer{}
-	customerSignup.IsActive = 1
 	customerSignup.Uuid = util.GenerateUUID()
 	customerSignup.UserName = req.UserName
 	customerSignup.Password = req.Password
 	customerSignup.Email = req.Email
+	customerSignup.IsActive = 0 // Mặc định inactive, chờ xác thực OTP
 	customerSignup.StartDay = nil
 	customerSignup.EndDay = nil
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(customerSignup.Password), bcrypt.DefaultCost)
 	if err != nil {
 		fmt.Println(err.Error())
-		c.JSON(http.StatusBadRequest, respond.ErrorCommon("invalid password"))
+		c.JSON(http.StatusBadRequest, respond.ErrorCommon("Invalid password"))
 		return
 	}
 	customerSignup.Password = string(hashedPassword)
@@ -54,11 +56,86 @@ func (userCtl UserController) SignUp(c *gin.Context) {
 	_, err = customerSignup.Insert()
 	if err != nil {
 		fmt.Println(err.Error())
-		c.JSON(http.StatusOK, respond.UpdatedFail())
+		c.JSON(http.StatusInternalServerError, respond.UpdatedFail())
 		return
 	}
 
-	c.JSON(http.StatusOK, respond.Success(customerSignup.Uuid, "sign up successfully"))
+	// ---- Generate OTP ----
+	otpCode := util.GenerateOTP()
+
+	// Gửi OTP tới email
+	err = util.SendOTPEmail(customerSignup.Email, otpCode)
+	if err != nil {
+		fmt.Println(err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể gửi mã OTP tới email"})
+		return
+	}
+
+	// ---- Lưu OTP vào database ----
+	otp := models.OTP{
+		Uuid:      util.GenerateUUID(),
+		UserUuid:  customerSignup.Uuid,
+		OtpCode:   otpCode,
+		ExpiresAt: time.Now().Add(5 * time.Minute), // OTP có hiệu lực 5 phút
+		CreatedAt: time.Now(),
+	}
+
+	err = otp.Insert(c.Request.Context())
+	if err != nil {
+		fmt.Println(err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu OTP"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Đăng ký thành công, vui lòng kiểm tra email để xác thực tài khoản!",
+		"uuid":    customerSignup.Uuid,
+	})
+}
+
+func (userCtl UserController) VerifyOTP(c *gin.Context) {
+	OTPModel := models.OTP{}
+	userModel := models.Customer{}
+	var req struct {
+		Email string `json:"email"`
+		OTP   string `json:"otp"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// Tìm OTP theo Email
+	otpRecord, err := OTPModel.FindOTPByEmail(context.Background(), req.Email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "OTP không tồn tại hoặc đã hết hạn"})
+		return
+	}
+
+	// So sánh OTP
+	if otpRecord.OtpCode != req.OTP {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Mã OTP không đúng"})
+		return
+	}
+
+	// Update tài khoản: is_active = 1
+	customer, err := userModel.FindCustomerByEmail(context.Background(), req.Email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Không tìm thấy tài khoản"})
+		return
+	}
+	customer.IsActive = 1
+	_, err = customer.Update()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Xác thực thất bại"})
+		return
+	}
+	c.JSON(http.StatusOK, respond.Success(customer.Uuid, "update successfully"))
+
+	// Xoá OTP
+	_ = OTPModel.DeleteOTP(context.Background(), req.Email)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Xác thực thành công!"})
 }
 
 func (userCtl UserController) Login(c *gin.Context) {
@@ -461,4 +538,33 @@ func (userCtl UserController) PostIdea(ctx *gin.Context) {
 		"message": res.Message,
 		"uuid":    res.Uuid,
 	})
+}
+func AddFavorite(c *gin.Context) {
+	var req request.AddFavoriteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
+		return
+	}
+
+	customerUuid := c.GetString("customer_uuid")
+	if customerUuid == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập"})
+		return
+	}
+
+	fav := models.Favorite{
+		Uuid:         util.GenerateUUID(),
+		CustomerUuid: customerUuid,
+		PostUuid:     req.PostUuid,
+		PostType:     req.PostType,
+		CreatedAt:    time.Now(),
+	}
+
+	_, err := fav.Insert()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể thêm vào danh sách yêu thích"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Đã thêm vào danh sách yêu thích"})
 }

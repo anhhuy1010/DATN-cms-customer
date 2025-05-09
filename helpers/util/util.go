@@ -3,6 +3,8 @@ package util
 import (
 	"context"
 	"encoding/json"
+	"math/rand"
+	"net/smtp"
 
 	"fmt"
 	"reflect"
@@ -86,4 +88,26 @@ func GenerateJWT(uuid string, startday, endday *time.Time) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtKey)
+}
+
+func GenerateOTP() string {
+	rand.Seed(time.Now().UnixNano())
+	return fmt.Sprintf("%06d", rand.Intn(1000000)) // Random 6 số
+}
+func SendOTPEmail(toEmail string, otp string) error {
+	from := "tranbaoanhhuy6@gmail.com"
+	password := "nrwz hoxd tfvs gldy"
+	smtpHost := "smtp.gmail.com"
+	smtpPort := "587"
+
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+
+	message := []byte(fmt.Sprintf("Subject: Xác minh tài khoản\n\nMã OTP của bạn là: %s", otp))
+
+	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{toEmail}, message)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
