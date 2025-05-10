@@ -1,6 +1,0 @@
-version: 2
-authtoken: 2volUOncAsT6BqMJhzDYR1pYlIa_4aeei3zWVFpDeGAowC1C8
-tunnels:
-  cms-customer:
-    proto: http
-    addr: app:7003
