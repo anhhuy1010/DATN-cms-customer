@@ -8,9 +8,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	user "github.com/anhhuy1010/cms-user/grpc/proto/users"
+	user "github.com/anhhuy1010/DATN-cms-customer/grpc/proto/users"
 
-	"github.com/anhhuy1010/cms-user/models"
+	"github.com/anhhuy1010/DATN-cms-customer/models"
 )
 
 type UserService struct {
@@ -37,7 +37,7 @@ func (s *UserService) Detail(ctx context.Context, req *user.DetailRequest) (*use
 	}
 
 	cond := bson.M{"uuid": result.UserUuid}
-	userResult, err := new(models.Users).FindOne(cond)
+	userResult, err := new(models.Customer).FindOne(cond)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, status.Error(codes.NotFound, "User not found")
@@ -47,7 +47,7 @@ func (s *UserService) Detail(ctx context.Context, req *user.DetailRequest) (*use
 
 	res := &user.DetailResponse{
 		UserUuid: result.UserUuid,
-		Role:     userResult.Role,
+		Role:     userResult.UserName,
 	}
 	return res, nil
 }

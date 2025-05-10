@@ -487,6 +487,7 @@ func (userCtl UserController) Create(c *gin.Context) {
 	c.JSON(http.StatusOK, respond.Success(userData.Uuid, "create successfully"))
 }
 
+// //////////////////////////////////////////////////////////////////////////
 func (userCtl UserController) PostIdea(ctx *gin.Context) {
 	var req struct {
 		IdeasName     string `json:"ideas_name"`
@@ -539,6 +540,9 @@ func (userCtl UserController) PostIdea(ctx *gin.Context) {
 		"uuid":    res.Uuid,
 	})
 }
+
+// //////////////////////////////////////////////////////////////////
+
 func AddFavorite(c *gin.Context) {
 	var req request.AddFavoriteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

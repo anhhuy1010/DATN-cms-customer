@@ -5,8 +5,6 @@ go 1.23.0
 toolchain go1.23.8
 
 require (
-	github.com/anhhuy1010/cms-user v0.0.0-20240806082943-17753139e6c1
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0

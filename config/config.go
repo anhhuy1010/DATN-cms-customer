@@ -10,12 +10,10 @@ import (
 
 var config *viper.Viper
 
-// Init is an exported method that takes the environment starts the viper
-// (external lib) and returns the configuration struct.
 func init() {
 	env := os.Getenv("APP_ENV")
 	if env == "" {
-		env = "development"
+		env = "production" // Heroku default
 	}
 
 	config = viper.New()
@@ -23,10 +21,16 @@ func init() {
 	config.SetConfigName(env)
 	config.AddConfigPath("./config/")
 	config.AddConfigPath("../config/")
+
+	// Tự động đọc từ biến môi trường
 	config.AutomaticEnv()
 	config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	// Load file YAML nếu có
 	if err := config.ReadInConfig(); err != nil {
-		log.Fatal(err.Error())
+		log.Println("⚠️ Không tìm thấy file cấu hình YAML. Sử dụng biến môi trường.")
+	} else {
+		log.Println("✅ Đã load file config:", config.ConfigFileUsed())
 	}
 }
 
