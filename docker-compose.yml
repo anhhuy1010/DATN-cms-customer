@@ -13,17 +13,8 @@ services:
       - 9003:9003
     networks:
       - datn_net
-
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: ngrok-tunnel
-    volumes:
-      - ./ngrok.yml:/etc/ngrok.yml
-    command: [ "start", "--config", "/etc/ngrok.yml", "--log", "stdout", "--all" ]
-    depends_on:
-      - app
-    networks:
-      - datn_net
-
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
 networks:
   datn_net:
