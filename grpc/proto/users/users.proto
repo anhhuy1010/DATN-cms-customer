@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "../user";
+option go_package = "github.com/anhhuy1010/DATN-cms-customer/grpc/proto/users";
 
 package user;
 

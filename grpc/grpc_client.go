@@ -3,13 +3,14 @@ package grpc
 import (
 	"fmt"
 
-	"github.com/anhhuy1010/cms-user/config"
+	"github.com/anhhuy1010/DATN-cms-customer/config"
 	"google.golang.org/grpc"
 )
 
 type GrpcService struct {
-	UsersConnect *grpc.ClientConn
-	IdeasConnect *grpc.ClientConn
+	UsersConnect   *grpc.ClientConn
+	IdeasConnect   *grpc.ClientConn
+	ProblemConnect *grpc.ClientConn
 }
 
 var grpcService *GrpcService
@@ -33,6 +34,9 @@ func (sv *GrpcService) NewService() (*GrpcService, error) {
 			}
 			if k == "idea" {
 				sv.IdeasConnect = conn
+			}
+			if k == "problem" {
+				sv.ProblemConnect = conn
 			}
 		}
 		grpcService = sv

@@ -20,3 +20,7 @@ proto-users:
 		-I /usr/include \
 		--go_out=paths=source_relative,plugins=grpc:grpc/proto/users/ \
 		grpc/proto/users/users.proto
+build-web:
+	heroku container:push web -a imatching
+release-web:
+	heroku container:release web -a imatching
