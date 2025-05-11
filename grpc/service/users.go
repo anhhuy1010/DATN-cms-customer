@@ -36,18 +36,8 @@ func (s *UserService) Detail(ctx context.Context, req *user.DetailRequest) (*use
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	cond := bson.M{"uuid": result.UserUuid}
-	userResult, err := new(models.Customer).FindOne(cond)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, status.Error(codes.NotFound, "User not found")
-		}
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
 	res := &user.DetailResponse{
 		UserUuid: result.UserUuid,
-		Role:     userResult.UserName,
 	}
 	return res, nil
 }

@@ -10,11 +10,12 @@ import (
 )
 
 type OTP struct {
-	Uuid      string    `bson:"uuid"`
-	UserUuid  string    `bson:"user_uuid"`
-	OtpCode   string    `bson:"otp_code"`
-	ExpiresAt time.Time `bson:"expires_at"`
-	CreatedAt time.Time `bson:"created_at"`
+	Uuid      string    `json:"uuid" bson:"uuid"`
+	UserUuid  string    `json:"user_uuid" bson:"user_uuid"`
+	OtpCode   string    `json:"otp_code" bson:"otp_code"`
+	Email     string    `json:"email" bson:"email"`
+	ExpiresAt time.Time `json:"expires_at" bson:"expires_at"`
+	CreatedAt time.Time `json:"created_at" bson:"created_at"`
 }
 
 func (o *OTP) Model() *mongo.Collection {

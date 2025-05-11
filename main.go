@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"github.com/anhhuy1010/DATN-cms-customer/config"
 	"github.com/anhhuy1010/DATN-cms-customer/database"
@@ -54,7 +55,10 @@ func main() {
 	} else {
 		fmt.Println("Fatal error GRPC connection: ", err2)
 	}
-	port := cfg.GetString("server.port")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // fallback cho local dev
+	}
 	go func() {
 		StartRest(port)
 	}()

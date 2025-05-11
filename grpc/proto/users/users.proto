@@ -14,5 +14,6 @@ message DetailRequest {
 
 message DetailResponse {
   string user_uuid = 1;
-  string role = 2;
+  string user_email = 2;
+  string user_name = 3;
 }
