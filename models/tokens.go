@@ -14,10 +14,12 @@ import (
 )
 
 type Tokens struct {
-	UserUuid string `json:"user_uuid,omitempty" bson:"user_uuid"`
-	Uuid     string `json:"uuid,omitempty" bson:"uuid"`
-	Token    string `json:"token"`
-	IsDelete int    `json:"is_delete" bson:"is_delete"`
+	UserUuid  string `json:"user_uuid,omitempty" bson:"user_uuid"`
+	Uuid      string `json:"uuid,omitempty" bson:"uuid"`
+	Token     string `json:"token"`
+	UserEmail string `json:"user_email," bson:"user_email"`
+	UserName  string `json:"user_name," bson:"user_name"`
+	IsDelete  int    `json:"is_delete" bson:"is_delete"`
 }
 
 func (u *Tokens) Model() *mongo.Collection {

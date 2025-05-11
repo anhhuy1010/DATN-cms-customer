@@ -9,8 +9,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 
-	//"go.mongodb.org/mongo-driver/bson"
-
 	"github.com/anhhuy1010/DATN-cms-customer/constant"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )

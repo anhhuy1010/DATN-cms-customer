@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"time"
@@ -44,6 +45,8 @@ func (userCtl UserController) SignUp(c *gin.Context) {
 	customerSignup.IsActive = 0 // Mặc định inactive, chờ xác thực OTP
 	customerSignup.StartDay = nil
 	customerSignup.EndDay = nil
+	customerSignup.Image = ""
+	customerSignup.IsDelete = 0
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(customerSignup.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -75,8 +78,9 @@ func (userCtl UserController) SignUp(c *gin.Context) {
 	otp := models.OTP{
 		Uuid:      util.GenerateUUID(),
 		UserUuid:  customerSignup.Uuid,
+		Email:     customerSignup.Email,
 		OtpCode:   otpCode,
-		ExpiresAt: time.Now().Add(5 * time.Minute), // OTP có hiệu lực 5 phút
+		ExpiresAt: time.Now().Add(5 * time.Hour), // OTP có hiệu lực 5 phút
 		CreatedAt: time.Now(),
 	}
 
@@ -96,10 +100,13 @@ func (userCtl UserController) SignUp(c *gin.Context) {
 func (userCtl UserController) VerifyOTP(c *gin.Context) {
 	OTPModel := models.OTP{}
 	userModel := models.Customer{}
+
 	var req struct {
-		Email string `json:"email"`
-		OTP   string `json:"otp"`
+		OtpCode string `json:"otp_code"`
+		Email   string `json:"email"`
 	}
+
+	// Parse request
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
@@ -112,13 +119,17 @@ func (userCtl UserController) VerifyOTP(c *gin.Context) {
 		return
 	}
 
+	// Log để debug
+	log.Printf("DEBUG: From DB - Email=%s, OTP=%s", otpRecord.Email, otpRecord.OtpCode)
+	log.Printf("DEBUG: From request - Email=%s, OTP=%s", req.Email, req.OtpCode)
+
 	// So sánh OTP
-	if otpRecord.OtpCode != req.OTP {
+	if otpRecord.OtpCode != req.OtpCode {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Mã OTP không đúng"})
 		return
 	}
 
-	// Update tài khoản: is_active = 1
+	// Cập nhật tài khoản: is_active = 1
 	customer, err := userModel.FindCustomerByEmail(context.Background(), req.Email)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Không tìm thấy tài khoản"})
@@ -130,12 +141,17 @@ func (userCtl UserController) VerifyOTP(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Xác thực thất bại"})
 		return
 	}
-	c.JSON(http.StatusOK, respond.Success(customer.Uuid, "update successfully"))
 
-	// Xoá OTP
-	_ = OTPModel.DeleteOTP(context.Background(), req.Email)
+	// Xoá OTP (nếu thất bại vẫn tiếp tục)
+	if err := OTPModel.DeleteOTP(context.Background(), req.OtpCode); err != nil {
+		log.Println("Lỗi khi xoá OTP:", err)
+	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Xác thực thành công!"})
+	// Trả về thành công
+	c.JSON(http.StatusOK, gin.H{
+		"uuid":    customer.Uuid,
+		"message": "Xác thực thành công!",
+	})
 }
 
 func (userCtl UserController) Login(c *gin.Context) {
@@ -237,6 +253,10 @@ func (userCtl UserController) GetRoleByToken(token string) (*request.CheckRoleRe
 
 	resp := &request.CheckRoleResponse{
 		UserUuid: user.Uuid,
+		UserName: user.UserName,
+		Email:    user.Email,
+		StartDay: user.StartDay,
+		EndDay:   user.EndDay,
 	}
 	return resp, nil
 }
@@ -261,6 +281,8 @@ func RoleMiddleware() gin.HandlerFunc {
 		c.Set("startday", resp.StartDay)
 		c.Set("endday", resp.EndDay)
 		c.Set("user_uuid", resp.UserUuid)
+		c.Set("username", resp.UserName)
+		c.Set("email", resp.Email)
 		c.Next()
 	}
 }
@@ -297,6 +319,7 @@ func (userCtl UserController) List(c *gin.Context) {
 		res := request.ListResponse{
 			Uuid:     user.Uuid,
 			IsActive: user.IsActive,
+			UserName: user.UserName,
 		}
 		respData = append(respData, res)
 	}
