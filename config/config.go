@@ -30,3 +30,8 @@ func init() {
 func GetConfig() *viper.Viper {
 	return config
 }
+func CustomerServiceCheckTokenURL() string {
+	baseURL := config.GetString("customer_service.base_url")
+	path := config.GetString("customer_service.check_token_path")
+	return baseURL + path
+}

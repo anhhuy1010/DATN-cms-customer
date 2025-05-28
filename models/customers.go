@@ -14,15 +14,16 @@ import (
 )
 
 type Customer struct {
-	Uuid     string     `json:"uuid,omitempty" bson:"uuid"`
-	UserName string     `json:"username" bson:"username"`
-	Password string     `json:"password" bson:"password"`
-	Email    string     `json:"email,omitempty" bson:"email"`
-	IsActive int        `json:"is_active" bson:"is_active"`
-	IsDelete int        `json:"is_delete" bson:"is_delete"`
-	Image    string     `json:"image" bson:"image"`
-	StartDay *time.Time `json:"startday" bson:"startday"`
-	EndDay   *time.Time `json:"endday" bson:"endday"`
+	Uuid      string     `json:"uuid,omitempty" bson:"uuid"`
+	UserName  string     `json:"username" bson:"username"`
+	Password  string     `json:"password" bson:"password"`
+	Email     string     `json:"email,omitempty" bson:"email"`
+	Introduce string     `json:"introduce" bson:"introduce"`
+	IsActive  int        `json:"is_active" bson:"is_active"`
+	IsDelete  int        `json:"is_delete" bson:"is_delete"`
+	Image     string     `json:"image" bson:"image"`
+	StartDay  *time.Time `json:"startday" bson:"startday"`
+	EndDay    *time.Time `json:"endday" bson:"endday"`
 }
 
 func (u *Customer) Model() *mongo.Collection {

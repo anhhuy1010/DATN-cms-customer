@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package customer;
+option go_package = "github.com/anhhuy1010/DATN-cms-customer/grpc/proto/customer";
+
+import "google/api/annotations.proto";
+
+service Customer {
+  rpc GetCustomerById (CustomerRequest) returns (CustomerResponse) {
+    option (google.api.http) = {
+      get: "/v1/customers/{uuid}"
+    };
+  }
+}
+
+message CustomerRequest {
+  string uuid = 1;
+}
+
+message CustomerResponse {
+  string username = 1;
+  string email = 2;
+  string image = 3;
+}

@@ -16,5 +16,13 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+
+  customer-service:
+    image: registry.heroku.com/imatching/web:latest
+    ports:
+      - 8080:8080
+    networks:
+      - datn_net
+
 networks:
   datn_net:

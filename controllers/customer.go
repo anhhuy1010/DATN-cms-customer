@@ -29,6 +29,7 @@ type UserController struct {
 }
 
 func (userCtl UserController) SignUp(c *gin.Context) {
+	userModel := models.Customer{}
 	var req request.SignUpRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
@@ -37,6 +38,12 @@ func (userCtl UserController) SignUp(c *gin.Context) {
 		return
 	}
 
+	condition := bson.M{"email": req.Email}
+	_, err = userModel.FindOne(condition)
+	if err == nil {
+		c.JSON(http.StatusBadRequest, respond.ErrorCommon("Tài khoản đã được đăng ký"))
+		return
+	}
 	customerSignup := models.Customer{}
 	customerSignup.Uuid = util.GenerateUUID()
 	customerSignup.UserName = req.UserName
@@ -46,6 +53,7 @@ func (userCtl UserController) SignUp(c *gin.Context) {
 	customerSignup.StartDay = nil
 	customerSignup.EndDay = nil
 	customerSignup.Image = ""
+	customerSignup.Introduce = ""
 	customerSignup.IsDelete = 0
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(customerSignup.Password), bcrypt.DefaultCost)
@@ -80,8 +88,8 @@ func (userCtl UserController) SignUp(c *gin.Context) {
 		UserUuid:  customerSignup.Uuid,
 		Email:     customerSignup.Email,
 		OtpCode:   otpCode,
-		ExpiresAt: time.Now().Add(5 * time.Hour), // OTP có hiệu lực 5 phút
-		CreatedAt: time.Now(),
+		ExpiresAt: util.NowVN().Add(5 * time.Minute), // OTP có hiệu lực 5 phút
+		CreatedAt: util.NowVN(),
 	}
 
 	err = otp.Insert(c.Request.Context())
@@ -108,7 +116,7 @@ func (userCtl UserController) VerifyOTP(c *gin.Context) {
 
 	// Parse request
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Vui lòng nhập mã OTP"})
 		return
 	}
 
@@ -116,6 +124,11 @@ func (userCtl UserController) VerifyOTP(c *gin.Context) {
 	otpRecord, err := OTPModel.FindOTPByEmail(context.Background(), req.Email)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "OTP không tồn tại hoặc đã hết hạn"})
+		return
+	}
+	if time.Now().After(otpRecord.ExpiresAt) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Mã OTP đã hết hạn"})
+		_ = OTPModel.DeleteOTP(context.Background(), otpRecord.OtpCode) // xóa nếu hết hạn
 		return
 	}
 
@@ -169,11 +182,17 @@ func (userCtl UserController) Login(c *gin.Context) {
 	user, err := userModel.FindOne(condition)
 	if err != nil {
 		fmt.Println(err.Error())
-		c.JSON(http.StatusBadRequest, respond.ErrorCommon("user not found"))
+		c.JSON(http.StatusBadRequest, respond.ErrorCommon("không tìm thấy người dùng!"))
+		return
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
+		fmt.Println(err.Error())
+		c.JSON(http.StatusBadRequest, respond.ErrorCommon("wrong password"))
 		return
 	}
 
-	token, err := util.GenerateJWT(user.Uuid, user.StartDay, user.EndDay)
+	token, err := util.GenerateJWT(user.Uuid, user.UserName, user.Email, user.StartDay, user.EndDay)
 	if err != nil {
 		fmt.Println(err.Error())
 		c.JSON(http.StatusBadRequest, respond.ErrorCommon("create token found"))
@@ -184,6 +203,8 @@ func (userCtl UserController) Login(c *gin.Context) {
 	userLogin.Uuid = util.GenerateUUID()
 	userLogin.Token = token
 	userLogin.IsDelete = 0
+	userLogin.UserEmail = user.Email
+	userLogin.UserName = user.UserName
 
 	_, err = userLogin.Insert()
 	if err != nil {
@@ -278,11 +299,20 @@ func RoleMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("startday", resp.StartDay)
-		c.Set("endday", resp.EndDay)
-		c.Set("user_uuid", resp.UserUuid)
-		c.Set("username", resp.UserName)
-		c.Set("email", resp.Email)
+		// ✅ Tạo claims từ resp
+		claims := &util.Claims{
+			Uuid:     resp.UserUuid,
+			UserName: resp.UserName,
+			Email:    resp.Email,
+			StartDay: resp.StartDay,
+			EndDay:   resp.EndDay,
+		}
+
+		// ✅ Gán vào context để ExtractClaims dùng được
+		c.Set("claims", claims)
+		c.Set("customer_uuid", claims.Uuid)
+		c.Set("customer_name", claims.UserName)
+
 		c.Next()
 	}
 }
@@ -302,9 +332,6 @@ func (userCtl UserController) List(c *gin.Context) {
 
 	if req.IsActive != nil {
 		cond["is_active"] = req.IsActive
-	}
-	if req.Role != nil {
-		cond["role"] = req.Role
 	}
 
 	optionsQuery, page, limit := models.GetPagingOption(req.Page, req.Limit, req.Sort)
@@ -366,17 +393,34 @@ func (userCtl UserController) Detail(c *gin.Context) {
 // ////////////////////////////////////////////////////////////////////////
 func (userCtl UserController) Update(c *gin.Context) {
 	userModel := new(models.Customer)
-	var reqUri request.UpdateUri
 
+	customerUuid, exists := c.Get("customer_uuid")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_uuid is missing"})
+		return
+	}
+	customerUuidStr, ok := customerUuid.(string)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_uuid must be string"})
+		return
+	}
+
+	var reqUri request.UpdateUri
+	// Validation input
 	err := c.ShouldBindUri(&reqUri)
 	if err != nil {
 		_ = c.Error(err)
 		c.JSON(http.StatusBadRequest, respond.MissingParams())
 		return
 	}
+
+	if customerUuidStr != reqUri.Uuid {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to update this user"})
+		return
+	}
+
 	var req request.UpdateRequest
-	err = c.ShouldBindJSON(&req)
-	if err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(err)
 		c.JSON(http.StatusBadRequest, respond.MissingParams())
 		return
@@ -386,23 +430,40 @@ func (userCtl UserController) Update(c *gin.Context) {
 	user, err := userModel.FindOne(condition)
 	if err != nil {
 		fmt.Println(err.Error())
-		c.JSON(http.StatusBadRequest, respond.ErrorCommon("User no found!"))
+		c.JSON(http.StatusBadRequest, respond.ErrorCommon("User not found!"))
 		return
 	}
 
-	if req.Email != "" {
-		user.Email = req.Email
+	if req.UserName != "" {
+		user.UserName = req.UserName
 	}
-	_, err = user.Update()
-	if err != nil {
+	if req.Image != "" {
+		user.Image = req.Image
+		fmt.Println("---------------------------Image from request:", req.Image)
+	}
+	if req.Introduce != "" {
+		user.Introduce = req.Introduce
+	}
+	if req.Password != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			fmt.Println(err.Error())
+			c.JSON(http.StatusBadRequest, respond.ErrorCommon("invalid password"))
+			return
+		}
+		user.Password = string(hashedPassword)
+	}
+
+	if _, err := user.Update(); err != nil {
 		fmt.Println(err.Error())
 		c.JSON(http.StatusBadRequest, respond.UpdatedFail())
 		return
 	}
+
 	c.JSON(http.StatusOK, respond.Success(user.Uuid, "update successfully"))
 }
 
-// //////////////////////////////////////////////////////////////////////////
+// ///////////////////////////////////////////////////////////////////////////
 func (userCtl UserController) Delete(c *gin.Context) {
 	userModel := new(models.Customer)
 	var reqUri request.DeleteUri
@@ -513,12 +574,17 @@ func (userCtl UserController) Create(c *gin.Context) {
 // //////////////////////////////////////////////////////////////////////////
 func (userCtl UserController) PostIdea(ctx *gin.Context) {
 	var req struct {
-		IdeasName     string `json:"ideas_name"`
-		Industry      string `json:"industry"`
-		ContentDetail string `json:"content_detail"`
-		Price         int32  `json:"price"`
+		IdeasName      string `json:"ideas_name"`
+		Industry       string `json:"industry"`
+		ContentDetail  string `json:"content_detail"`
+		Price          int32  `json:"price"`
+		Image          string `json:"image"` // Client gửi base64 trực tiếp
+		Procedure      string `json:"is_procedure"`
+		Value_Benefits string `json:"value_benefits"`
+		Is_Intellect   int    `json:"is_intellect"`
 	}
 
+	// Parse JSON body
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
 		return
@@ -530,16 +596,14 @@ func (userCtl UserController) PostIdea(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Không xác thực được người dùng"})
 		return
 	}
-	customerUuid, _ := claims["uuid"].(string)
-	customerName, _ := claims["name"].(string)
-	customerEmail, _ := claims["email"].(string)
 
-	if customerUuid == "" || customerName == "" || customerEmail == "" {
+	// Kiểm tra thông tin người dùng trong token
+	if claims.Uuid == "" || claims.UserName == "" || claims.Email == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu thông tin người dùng trong token"})
 		return
 	}
 
-	// Gọi gRPC
+	// Gọi gRPC đến IdeaService
 	grpcConn := grpc.GetInstance()
 	client := pbIdeas.NewIdeaServiceClient(grpcConn.IdeasConnect)
 
@@ -548,9 +612,9 @@ func (userCtl UserController) PostIdea(ctx *gin.Context) {
 		Industry:      req.Industry,
 		ContentDetail: req.ContentDetail,
 		Price:         req.Price,
-		CustomerUuid:  customerUuid,
-		CustomerName:  customerName,
-		CustomerEmail: customerEmail,
+		CustomerUuid:  claims.Uuid,
+		CustomerName:  claims.UserName,
+		CustomerEmail: claims.Email,
 	})
 
 	if err != nil {
@@ -558,40 +622,165 @@ func (userCtl UserController) PostIdea(ctx *gin.Context) {
 		return
 	}
 
+	// Trả về kết quả
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": res.Message,
 		"uuid":    res.Uuid,
 	})
 }
 
-// //////////////////////////////////////////////////////////////////
-
-func AddFavorite(c *gin.Context) {
-	var req request.AddFavoriteRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
+// //////////////////////////////////////////////////////////////////////////////
+func (userCtl UserController) MyProfile(c *gin.Context) {
+	claims, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	customerUuid := c.GetString("customer_uuid")
-	if customerUuid == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập"})
+	userClaims, ok := claims.(*util.Claims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 		return
 	}
 
-	fav := models.Favorite{
-		Uuid:         util.GenerateUUID(),
-		CustomerUuid: customerUuid,
-		PostUuid:     req.PostUuid,
-		PostType:     req.PostType,
-		CreatedAt:    time.Now(),
-	}
+	userModel := models.Customer{}
+	cond := bson.M{"uuid": userClaims.Uuid}
 
-	_, err := fav.Insert()
+	user, err := userModel.FindOne(cond)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể thêm vào danh sách yêu thích"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Không tìm thấy người dùng"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Đã thêm vào danh sách yêu thích"})
+	c.JSON(http.StatusOK, gin.H{
+		"uuid":      user.Uuid,
+		"username":  user.UserName,
+		"email":     user.Email,
+		"image":     user.Image,
+		"introduce": user.Introduce,
+		"is_active": user.IsActive,
+		"start_day": user.StartDay,
+		"end_day":   user.EndDay,
+	})
+}
+
+func (userCtl UserController) CreateRating(c *gin.Context) {
+	var input struct {
+		ExpertUuid string `json:"expert_uuid" binding:"required"`
+		Rating     int    `json:"rating" binding:"required,min=1,max=5"`
+		Comment    string `json:"comment"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// ✅ Lấy customer_id từ JWT
+	customerUuid, exists := c.Get("customer_uuid")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_uuid is missing"})
+		return
+	}
+
+	customerUuidStr, ok := customerUuid.(string)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_uuid must be string"})
+		return
+	}
+	customerName, exists := c.Get("customer_name")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_name is missing"})
+		return
+	}
+	customerNameStr, ok := customerName.(string)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_uuid must be string"})
+		return
+	}
+	rating := models.Rating{
+		Uuid:         util.GenerateUUID(),
+		CustomerUuid: customerUuidStr,
+		CustomerName: customerNameStr,
+		ExpertUuid:   input.ExpertUuid,
+		Rating:       input.Rating,
+		Comment:      input.Comment,
+		CreatedAt:    time.Now(),
+		IsDelete:     0,
+	}
+
+	_, err := rating.Insert()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu đánh giá"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Đánh giá đã được ghi nhận"})
+}
+
+// //////////////////////////////////////////////////////////////////////////
+func (userCtl UserController) ListRating(c *gin.Context) {
+	userModel := new(models.Rating)
+	var req request.GetListRatingRequest
+	var reqUri request.ExpertUriParam
+
+	// BIND PATH PARAM
+	if err := c.ShouldBindUri(&reqUri); err != nil {
+		c.JSON(http.StatusBadRequest, respond.MissingParams())
+		return
+	}
+
+	// KIỂM TRA expert_uuid tồn tại
+	existCondition := bson.M{"expert_uuid": reqUri.ExpertUuid}
+	_, err := userModel.FindOne(existCondition)
+	if err != nil {
+		c.JSON(http.StatusNotFound, respond.ErrorCommon("Không tìm thấy đánh giá nào cho chuyên gia này"))
+		return
+	}
+
+	// BIND QUERY PARAM
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, respond.MissingParams())
+		return
+	}
+
+	// BUILD condition truy vấn đánh giá
+	cond := bson.M{"expert_uuid": reqUri.ExpertUuid}
+	if req.Rating != nil {
+		cond["rating"] = *req.Rating
+	}
+
+	// PAGINATION
+	optionsQuery, page, limit := models.GetPagingOption(req.Page, req.Limit, req.Sort)
+
+	// TRUY VẤN DỮ LIỆU
+	ratings, err := userModel.Pagination(c, cond, optionsQuery)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, respond.ErrorCommon("Không thể lấy danh sách đánh giá"))
+		return
+	}
+
+	// FORMAT KẾT QUẢ
+	var respData []request.ListRatingResponse
+	for _, rating := range ratings {
+		res := request.ListRatingResponse{
+			Uuid:         rating.Uuid,
+			Rating:       rating.Rating,
+			Comment:      rating.Comment,
+			CustomerName: rating.CustomerName,
+			CustomerUuid: rating.CustomerUuid,
+		}
+		respData = append(respData, res)
+	}
+
+	// TÍNH TỔNG
+	total, err := userModel.Count(c, cond)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, respond.ErrorCommon("Không thể đếm số lượng đánh giá"))
+		return
+	}
+	pages := int(math.Ceil(float64(total) / float64(limit)))
+
+	// TRẢ KẾT QUẢ
+	c.JSON(http.StatusOK, respond.SuccessPagination(respData, page, limit, pages, total))
 }

@@ -24,3 +24,6 @@ grpc:
     host: host.docker.internal
     port: 9004
 
+customer_service:
+  base_url: "http://customer-service.internal"
+  check_token_path: "/internal/auth/check-token"

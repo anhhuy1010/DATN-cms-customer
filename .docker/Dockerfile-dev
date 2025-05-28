@@ -1,26 +1,40 @@
 FROM golang:1.24-alpine
-ARG CACHEBUST=1
 
+ARG CACHEBUST=1
 ENV GO111MODULE=on
 ENV GOPRIVATE=github.com/anhhuy1010
-ENV APP_ENV development
+ENV APP_ENV=development
 ENV GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
 
+# Cài công cụ cần thiết
+RUN apk add --no-cache bash ca-certificates curl git gcc g++ libc-dev autoconf automake libtool make protoc unzip
 
-RUN apk add bash ca-certificates curl git gcc g++ libc-dev autoconf automake libtool make protoc
-RUN mkdir -p /go/src/github.com/anhhuy1010/DATN-cms-customer
-
-# Install protoc
+# Tạo thư mục làm việc
 WORKDIR /go/src/github.com/anhhuy1010/DATN-cms-customer
-RUN go install github.com/golang/protobuf/protoc-gen-go@latest
-RUN go install github.com/envoyproxy/protoc-gen-validate@latest
-RUN mkdir -p /go/src/github.com/envoyproxy/protoc-gen-validate
-RUN cp -r /go/pkg/mod/github.com/envoyproxy/protoc-gen-validate*/* /go/src/github.com/envoyproxy/protoc-gen-validate/.
-ADD . .
 
-RUN go install github.com/swaggo/swag/cmd/swag@latest
-RUN swag init ./controllers/*
+# Cài các plugin cho protoc
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest \
+    && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest \
+    && go install github.com/envoyproxy/protoc-gen-validate@latest \
+    && go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest \
+    && go install github.com/swaggo/swag/cmd/swag@latest \
+    && go install github.com/githubnemo/CompileDaemon@latest
 
-RUN go install github.com/githubnemo/CompileDaemon@latest
+# Đảm bảo các binary protoc-gen-* có trong PATH
+ENV PATH="/go/bin:$PATH"
+
+# Sao chép toàn bộ mã nguồn vào container
+COPY . .
+
+# Tải thư viện go
+RUN go mod download
+
+# Sinh swagger docs (không làm fail build nếu lỗi)
+RUN swag init ./controllers/* || true
+
+# Tải googleapis (nếu chưa tồn tại)
+RUN mkdir -p third_party \
+    && [ ! -d "third_party/googleapis" ] && git clone https://github.com/googleapis/googleapis.git third_party/googleapis || true
+
+# Build và chạy ứng dụng bằng CompileDaemon
 ENTRYPOINT CompileDaemon -build="go build -o /tmp/DATN-cms-customer ./main.go" -command="/tmp/DATN-cms-customer"
-
