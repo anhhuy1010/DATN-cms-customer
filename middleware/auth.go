@@ -1,14 +1,15 @@
 package middleware
 
 import (
+	"github.com/anhhuy1010/DATN-cms-customer/helpers/util"
 	"github.com/gin-gonic/gin"
 )
 
-func ExtractClaims(ctx *gin.Context) (map[string]interface{}, bool) {
+func ExtractClaims(ctx *gin.Context) (*util.Claims, bool) {
 	claims, exists := ctx.Get("claims")
 	if !exists {
 		return nil, false
 	}
-	claimMap, ok := claims.(map[string]interface{})
-	return claimMap, ok
+	claimStruct, ok := claims.(*util.Claims)
+	return claimStruct, ok
 }

@@ -16,13 +16,16 @@ import (
 
 func RouteInit(engine *gin.Engine) {
 	engine.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},                                       // Cho phép tất cả các domain
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, // Các phương thức HTTP cho phép
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"}, // Các header cho phép
-		AllowCredentials: true,                                                // Cho phép chia sẻ cookie nếu cần
+		AllowOrigins:     []string{"*"},                                                  // Cho phép tất cả các domain
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},            // Các phương thức HTTP cho phép
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "x-token"}, // Các header cho phép
+		AllowCredentials: true,                                                           // Cho phép chia sẻ cookie nếu cần
 		ExposeHeaders:    []string{"Content-Length"},
-		MaxAge:           12 * time.Hour, // Thời gian tối đa mà trình duyệt sẽ cache thông tin CORS
+		MaxAge:           24 * time.Hour, // Thời gian tối đa mà trình duyệt sẽ cache thông tin CORS
 	}))
+	engine.OPTIONS("/*path", func(c *gin.Context) {
+		c.AbortWithStatus(http.StatusOK)
+	})
 	userCtr := new(controllers.UserController)
 
 	engine.GET("/health", func(c *gin.Context) {
@@ -38,6 +41,7 @@ func RouteInit(engine *gin.Engine) {
 	apiV1.POST("/customer/login", userCtr.Login)
 	apiV1.POST("/customer/sign", userCtr.SignUp)
 	apiV1.POST("/customer/verify-otp", userCtr.VerifyOTP)
+	apiV1.GET("/customer", userCtr.List)
 
 	apiV1.Use(middleware.RequestLog())
 
@@ -46,7 +50,7 @@ func RouteInit(engine *gin.Engine) {
 	protected.Use(controllers.RoleMiddleware())
 	{
 
-		protected.GET("/customer", userCtr.List)
+		protected.GET("/customer/my-profile", userCtr.MyProfile)
 		protected.GET("/customer/:uuid", userCtr.Detail)
 		protected.POST("/customer", userCtr.Create)
 		protected.PUT("/customer/:uuid", userCtr.Update)
@@ -54,6 +58,10 @@ func RouteInit(engine *gin.Engine) {
 		protected.DELETE("/customer/:uuid", userCtr.Delete)
 		protected.POST("/customer/logout", userCtr.Logout)
 		protected.POST("/customer/post-idea", userCtr.PostIdea)
+		///////////////////////////////////////////////////////////////////////////////
+		protected.POST("/customer/rating", userCtr.CreateRating)
+		protected.GET("/customer/rating/:expert_uuid", userCtr.ListRating)
+
 	}
 
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))

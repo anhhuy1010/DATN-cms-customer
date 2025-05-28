@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/anhhuy1010/DATN-cms-customer/database"
@@ -39,6 +40,14 @@ func (o *OTP) FindOTPByEmail(ctx context.Context, email string) (*OTP, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Kiểm tra thời gian hết hạn
+	if time.Now().After(otp.ExpiresAt) {
+		// Nếu đã hết hạn, xóa bản ghi OTP này
+		_, _ = col.DeleteOne(ctx, filter)
+		return nil, fmt.Errorf("OTP đã hết hạn")
+	}
+
 	return &otp, nil
 }
 
@@ -52,5 +61,5 @@ func (o *OTP) DeleteOTP(ctx context.Context, email string) error {
 
 // Kiểm tra OTP có hết hạn không (ví dụ timeout 5 phút)
 func (o *OTP) IsExpired() bool {
-	return time.Since(o.CreatedAt) > 5*time.Minute
+	return time.Since(o.CreatedAt) > 30*time.Second
 }

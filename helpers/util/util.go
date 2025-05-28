@@ -3,22 +3,22 @@ package util
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"net/smtp"
-
-	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-
 	"github.com/anhhuy1010/DATN-cms-customer/config"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
-func GenerateUUID() (s string) {
+var vnLocation, _ = time.LoadLocation("Asia/Ho_Chi_Minh")
+
+func GenerateUUID() string {
 	uuidNew, _ := uuid.NewUUID()
 	return uuidNew.String()
 }
@@ -26,19 +26,20 @@ func GenerateUUID() (s string) {
 func ShoudBindHeader(c *gin.Context) bool {
 	platform := c.Request.Header.Get("X-PLATFORM")
 	lang := c.Request.Header.Get("X-LANG")
-
-	if platform == "" || lang == "" {
-		return false
-	}
-
-	return true
+	return platform != "" && lang != ""
 }
 
-func GetNowUTC() time.Time {
-	loc, _ := time.LoadLocation("UTC")
-	currentTime := time.Now().In(loc)
-	return currentTime
+// Lấy thời gian hiện tại theo múi giờ Việt Nam
+func NowVN() time.Time {
+	return time.Now().In(vnLocation)
 }
+
+// Chuyển bất kỳ thời gian nào sang múi giờ Việt Nam
+func ToVN(t time.Time) time.Time {
+	return t.In(vnLocation)
+}
+
+// Debug in ra JSON có format đẹp
 func DebugJson(value interface{}) {
 	fmt.Println(reflect.TypeOf(value).String())
 	prettyJSON, _ := json.MarshalIndent(value, "", "    ")
@@ -49,7 +50,6 @@ func GetKeyFromContext(ctx context.Context, key string) (interface{}, bool) {
 	if v := ctx.Value(key); v != nil {
 		return v, true
 	}
-
 	return nil, false
 }
 
@@ -62,27 +62,32 @@ type Claims struct {
 	Uuid     string     `json:"uuid"`
 	StartDay *time.Time `json:"startday"`
 	EndDay   *time.Time `json:"endday"`
+	UserName string     `json:"username"`
+	Email    string     `json:"email"`
 	jwt.RegisteredClaims
 }
 
-// Valid implements jwt.Claims (trả về nil để chấp nhận mọi token hợp lệ).
+// Valid implements jwt.Claims
 func (c *Claims) Valid() error {
 	return nil
 }
 
 // GenerateJWT tạo token có thể chứa StartDay và EndDay là nil
-func GenerateJWT(uuid string, startday, endday *time.Time) (string, error) {
+func GenerateJWT(uuid, username, email string, startday, endday *time.Time) (string, error) {
 	cfg := config.GetConfig()
 	jwtKeyStr := cfg.GetString("auth.key")
 	jwtKey := []byte(jwtKeyStr)
 
+	now := NowVN()
 	claims := &Claims{
 		Uuid:     uuid,
+		UserName: username,
+		Email:    email,
 		StartDay: startday,
 		EndDay:   endday,
 		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // hoặc nil nếu không muốn expire
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(24 * time.Hour)), // Token hết hạn sau 24h
 		},
 	}
 
@@ -90,13 +95,16 @@ func GenerateJWT(uuid string, startday, endday *time.Time) (string, error) {
 	return token.SignedString(jwtKey)
 }
 
+// Tạo OTP ngẫu nhiên 6 chữ số
 func GenerateOTP() string {
 	rand.Seed(time.Now().UnixNano())
-	return fmt.Sprintf("%06d", rand.Intn(1000000)) // Random 6 số
+	return fmt.Sprintf("%06d", rand.Intn(1000000))
 }
+
+// Gửi mã OTP đến email
 func SendOTPEmail(toEmail string, otp string) error {
 	from := "tranbaoanhhuy6@gmail.com"
-	password := "nrwz hoxd tfvs gldy"
+	password := "nrwz hoxd tfvs gldy" // Chú ý: Không nên commit mật khẩu thật vào mã nguồn
 	smtpHost := "smtp.gmail.com"
 	smtpPort := "587"
 

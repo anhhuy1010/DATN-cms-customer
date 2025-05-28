@@ -2,24 +2,33 @@ FROM golang:1.24-alpine
 
 WORKDIR /app
 
-# Install necessary tools
-RUN apk add --no-cache bash git protoc curl build-base
+# Cài các công cụ cần thiết
+RUN apk add --no-cache bash git curl build-base protobuf
 
-# Copy go mod and sum files
-COPY go.mod ./
-COPY go.sum ./
+# Cài plugin protoc cho Go và gateway
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest \
+    && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest \
+    && go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest \
+    && go install github.com/swaggo/swag/cmd/swag@latest
+
+# Thêm GOPATH/bin vào PATH để các plugin protoc hoạt động
+ENV PATH="/go/bin:${PATH}"
+
+# Copy go.mod và tải module
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy entire source
-COPY . ./
+# Copy toàn bộ source
+COPY . .
 
-# Generate swagger docs (optional)
-RUN go install github.com/swaggo/swag/cmd/swag@latest
+# Sinh swagger docs (tùy chọn)
 RUN swag init ./controllers/* || true
 
-# Build the Go app
+# Build ứng dụng Go
 RUN go build -o /main ./main.go
 
-# Run
+# Lắng nghe cổng HTTP
 EXPOSE 8080
+
+# Chạy app
 ENTRYPOINT ["/main"]
