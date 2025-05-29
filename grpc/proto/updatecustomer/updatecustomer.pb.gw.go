@@ -35,7 +35,7 @@ var (
 	_ = metadata.Join
 )
 
-func request_Customer_UpdateDuration_0(ctx context.Context, marshaler runtime.Marshaler, client CustomerClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_UpdateCustomer_UpdateDuration_0(ctx context.Context, marshaler runtime.Marshaler, client UpdateCustomerClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq UpdateDurationRequest
 		metadata runtime.ServerMetadata
@@ -54,7 +54,7 @@ func request_Customer_UpdateDuration_0(ctx context.Context, marshaler runtime.Ma
 	return msg, metadata, err
 }
 
-func local_request_Customer_UpdateDuration_0(ctx context.Context, marshaler runtime.Marshaler, server CustomerServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_UpdateCustomer_UpdateDuration_0(ctx context.Context, marshaler runtime.Marshaler, server UpdateCustomerServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq UpdateDurationRequest
 		metadata runtime.ServerMetadata
@@ -72,39 +72,39 @@ func local_request_Customer_UpdateDuration_0(ctx context.Context, marshaler runt
 	return msg, metadata, err
 }
 
-// RegisterCustomerHandlerServer registers the http handlers for service Customer to "mux".
-// UnaryRPC     :call CustomerServer directly.
+// RegisterUpdateCustomerHandlerServer registers the http handlers for service UpdateCustomer to "mux".
+// UnaryRPC     :call UpdateCustomerServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
-// Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterCustomerHandlerFromEndpoint instead.
+// Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterUpdateCustomerHandlerFromEndpoint instead.
 // GRPC interceptors will not work for this type of registration. To use interceptors, you must use the "runtime.WithMiddlewares" option in the "runtime.NewServeMux" call.
-func RegisterCustomerHandlerServer(ctx context.Context, mux *runtime.ServeMux, server CustomerServer) error {
-	mux.Handle(http.MethodGet, pattern_Customer_UpdateDuration_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+func RegisterUpdateCustomerHandlerServer(ctx context.Context, mux *runtime.ServeMux, server UpdateCustomerServer) error {
+	mux.Handle(http.MethodGet, pattern_UpdateCustomer_UpdateDuration_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/customer.Customer/UpdateDuration", runtime.WithHTTPPathPattern("/v1/customers/{uuid}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/customer.UpdateCustomer/UpdateDuration", runtime.WithHTTPPathPattern("/v1/customers/{uuid}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Customer_UpdateDuration_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_UpdateCustomer_UpdateDuration_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_Customer_UpdateDuration_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_UpdateCustomer_UpdateDuration_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 
 	return nil
 }
 
-// RegisterCustomerHandlerFromEndpoint is same as RegisterCustomerHandler but
+// RegisterUpdateCustomerHandlerFromEndpoint is same as RegisterUpdateCustomerHandler but
 // automatically dials to "endpoint" and closes the connection when "ctx" gets done.
-func RegisterCustomerHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
+func RegisterUpdateCustomerHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
 	conn, err := grpc.NewClient(endpoint, opts...)
 	if err != nil {
 		return err
@@ -123,45 +123,45 @@ func RegisterCustomerHandlerFromEndpoint(ctx context.Context, mux *runtime.Serve
 			}
 		}()
 	}()
-	return RegisterCustomerHandler(ctx, mux, conn)
+	return RegisterUpdateCustomerHandler(ctx, mux, conn)
 }
 
-// RegisterCustomerHandler registers the http handlers for service Customer to "mux".
+// RegisterUpdateCustomerHandler registers the http handlers for service UpdateCustomer to "mux".
 // The handlers forward requests to the grpc endpoint over "conn".
-func RegisterCustomerHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
-	return RegisterCustomerHandlerClient(ctx, mux, NewCustomerClient(conn))
+func RegisterUpdateCustomerHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
+	return RegisterUpdateCustomerHandlerClient(ctx, mux, NewUpdateCustomerClient(conn))
 }
 
-// RegisterCustomerHandlerClient registers the http handlers for service Customer
-// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "CustomerClient".
-// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "CustomerClient"
+// RegisterUpdateCustomerHandlerClient registers the http handlers for service UpdateCustomer
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "UpdateCustomerClient".
+// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "UpdateCustomerClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
-// "CustomerClient" to call the correct interceptors. This client ignores the HTTP middlewares.
-func RegisterCustomerHandlerClient(ctx context.Context, mux *runtime.ServeMux, client CustomerClient) error {
-	mux.Handle(http.MethodGet, pattern_Customer_UpdateDuration_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+// "UpdateCustomerClient" to call the correct interceptors. This client ignores the HTTP middlewares.
+func RegisterUpdateCustomerHandlerClient(ctx context.Context, mux *runtime.ServeMux, client UpdateCustomerClient) error {
+	mux.Handle(http.MethodGet, pattern_UpdateCustomer_UpdateDuration_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/customer.Customer/UpdateDuration", runtime.WithHTTPPathPattern("/v1/customers/{uuid}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/customer.UpdateCustomer/UpdateDuration", runtime.WithHTTPPathPattern("/v1/customers/{uuid}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Customer_UpdateDuration_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_UpdateCustomer_UpdateDuration_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_Customer_UpdateDuration_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_UpdateCustomer_UpdateDuration_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	return nil
 }
 
 var (
-	pattern_Customer_UpdateDuration_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "customers", "uuid"}, ""))
+	pattern_UpdateCustomer_UpdateDuration_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "customers", "uuid"}, ""))
 )
 
 var (
-	forward_Customer_UpdateDuration_0 = runtime.ForwardResponseMessage
+	forward_UpdateCustomer_UpdateDuration_0 = runtime.ForwardResponseMessage
 )

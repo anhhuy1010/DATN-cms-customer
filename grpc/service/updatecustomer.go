@@ -12,7 +12,7 @@ import (
 )
 
 type UpdateCustomerServer struct {
-	pb.UnimplementedCustomerServer
+	pb.UnimplementedUpdateCustomerServer
 	Collection *mongo.Collection // MongoDB collection
 }
 

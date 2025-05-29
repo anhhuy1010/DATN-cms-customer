@@ -19,101 +19,101 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Customer_UpdateDuration_FullMethodName = "/customer.Customer/UpdateDuration"
+	UpdateCustomer_UpdateDuration_FullMethodName = "/customer.UpdateCustomer/UpdateDuration"
 )
 
-// CustomerClient is the client API for Customer service.
+// UpdateCustomerClient is the client API for UpdateCustomer service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type CustomerClient interface {
+type UpdateCustomerClient interface {
 	UpdateDuration(ctx context.Context, in *UpdateDurationRequest, opts ...grpc.CallOption) (*UpdateDurationResponse, error)
 }
 
-type customerClient struct {
+type updateCustomerClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewCustomerClient(cc grpc.ClientConnInterface) CustomerClient {
-	return &customerClient{cc}
+func NewUpdateCustomerClient(cc grpc.ClientConnInterface) UpdateCustomerClient {
+	return &updateCustomerClient{cc}
 }
 
-func (c *customerClient) UpdateDuration(ctx context.Context, in *UpdateDurationRequest, opts ...grpc.CallOption) (*UpdateDurationResponse, error) {
+func (c *updateCustomerClient) UpdateDuration(ctx context.Context, in *UpdateDurationRequest, opts ...grpc.CallOption) (*UpdateDurationResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UpdateDurationResponse)
-	err := c.cc.Invoke(ctx, Customer_UpdateDuration_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, UpdateCustomer_UpdateDuration_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// CustomerServer is the server API for Customer service.
-// All implementations must embed UnimplementedCustomerServer
+// UpdateCustomerServer is the server API for UpdateCustomer service.
+// All implementations must embed UnimplementedUpdateCustomerServer
 // for forward compatibility.
-type CustomerServer interface {
+type UpdateCustomerServer interface {
 	UpdateDuration(context.Context, *UpdateDurationRequest) (*UpdateDurationResponse, error)
-	mustEmbedUnimplementedCustomerServer()
+	mustEmbedUnimplementedUpdateCustomerServer()
 }
 
-// UnimplementedCustomerServer must be embedded to have
+// UnimplementedUpdateCustomerServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedCustomerServer struct{}
+type UnimplementedUpdateCustomerServer struct{}
 
-func (UnimplementedCustomerServer) UpdateDuration(context.Context, *UpdateDurationRequest) (*UpdateDurationResponse, error) {
+func (UnimplementedUpdateCustomerServer) UpdateDuration(context.Context, *UpdateDurationRequest) (*UpdateDurationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateDuration not implemented")
 }
-func (UnimplementedCustomerServer) mustEmbedUnimplementedCustomerServer() {}
-func (UnimplementedCustomerServer) testEmbeddedByValue()                  {}
+func (UnimplementedUpdateCustomerServer) mustEmbedUnimplementedUpdateCustomerServer() {}
+func (UnimplementedUpdateCustomerServer) testEmbeddedByValue()                        {}
 
-// UnsafeCustomerServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to CustomerServer will
+// UnsafeUpdateCustomerServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to UpdateCustomerServer will
 // result in compilation errors.
-type UnsafeCustomerServer interface {
-	mustEmbedUnimplementedCustomerServer()
+type UnsafeUpdateCustomerServer interface {
+	mustEmbedUnimplementedUpdateCustomerServer()
 }
 
-func RegisterCustomerServer(s grpc.ServiceRegistrar, srv CustomerServer) {
-	// If the following call pancis, it indicates UnimplementedCustomerServer was
+func RegisterUpdateCustomerServer(s grpc.ServiceRegistrar, srv UpdateCustomerServer) {
+	// If the following call pancis, it indicates UnimplementedUpdateCustomerServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&Customer_ServiceDesc, srv)
+	s.RegisterService(&UpdateCustomer_ServiceDesc, srv)
 }
 
-func _Customer_UpdateDuration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _UpdateCustomer_UpdateDuration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateDurationRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CustomerServer).UpdateDuration(ctx, in)
+		return srv.(UpdateCustomerServer).UpdateDuration(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Customer_UpdateDuration_FullMethodName,
+		FullMethod: UpdateCustomer_UpdateDuration_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CustomerServer).UpdateDuration(ctx, req.(*UpdateDurationRequest))
+		return srv.(UpdateCustomerServer).UpdateDuration(ctx, req.(*UpdateDurationRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Customer_ServiceDesc is the grpc.ServiceDesc for Customer service.
+// UpdateCustomer_ServiceDesc is the grpc.ServiceDesc for UpdateCustomer service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Customer_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "customer.Customer",
-	HandlerType: (*CustomerServer)(nil),
+var UpdateCustomer_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "customer.UpdateCustomer",
+	HandlerType: (*UpdateCustomerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "UpdateDuration",
-			Handler:    _Customer_UpdateDuration_Handler,
+			Handler:    _UpdateCustomer_UpdateDuration_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
