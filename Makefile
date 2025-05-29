@@ -30,6 +30,14 @@ proto-customer:
        --go-grpc_out=paths=source_relative:grpc/proto/customer \
        --grpc-gateway_out=paths=source_relative:grpc/proto/customer \
        grpc/proto/customer/customer.proto
+proto-updatecustomer:
+	protoc -I grpc/proto/updatecustomer \
+	   -I third_party/googleapis \
+	   -I third_party/protobuf/src \
+	   --go_out=paths=source_relative:grpc/proto/updatecustomer \
+	   --go-grpc_out=paths=source_relative:grpc/proto/updatecustomer \
+	   --grpc-gateway_out=paths=source_relative:grpc/proto/updatecustomer \
+	   grpc/proto/updatecustomer/updatecustomer.proto
 
 build-web:
 	heroku container:push web -a imatching
