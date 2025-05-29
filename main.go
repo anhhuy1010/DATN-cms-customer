@@ -92,7 +92,7 @@ func StartGRPC(port string) error {
 	server = grpc.NewServer()
 	pbUserr.RegisterUserServer(server, service.NewUserServer())
 	pbCustomer.RegisterCustomerServer(server, service.NewCustomerServer())
-	pbUpdateCustomer.RegisterCustomerServer(server, service.NewUpdateCustomerServer(database.GetInstance().Collection("customers")))
+	pbUpdateCustomer.RegisterUpdateCustomerServer(server, service.NewUpdateCustomerServer(database.GetInstance().Collection("customers")))
 	// start gRPC server
 	fmt.Println("starting gRPC server... port: ", port)
 

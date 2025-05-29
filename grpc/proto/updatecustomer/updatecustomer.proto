@@ -5,7 +5,7 @@ option go_package = "github.com/anhhuy1010/DATN-cms-customer/grpc/proto/updatecu
 
 import "google/api/annotations.proto";
 
-service Customer {
+service UpdateCustomer {
   rpc UpdateDuration (UpdateDurationRequest) returns (UpdateDurationResponse) {
     option (google.api.http) = {
       get: "/v1/customers/{uuid}"

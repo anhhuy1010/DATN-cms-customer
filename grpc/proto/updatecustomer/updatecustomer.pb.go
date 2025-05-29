@@ -118,8 +118,8 @@ const file_updatecustomer_proto_rawDesc = "" +
 	"\x15UpdateDurationRequest\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\"2\n" +
 	"\x16UpdateDurationResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage2}\n" +
-	"\bCustomer\x12q\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage2\x83\x01\n" +
+	"\x0eUpdateCustomer\x12q\n" +
 	"\x0eUpdateDuration\x12\x1f.customer.UpdateDurationRequest\x1a .customer.UpdateDurationResponse\"\x1c\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/customers/{uuid}BCZAgithub.com/anhhuy1010/DATN-cms-customer/grpc/proto/updatecustomerb\x06proto3"
 
 var (
@@ -140,8 +140,8 @@ var file_updatecustomer_proto_goTypes = []any{
 	(*UpdateDurationResponse)(nil), // 1: customer.UpdateDurationResponse
 }
 var file_updatecustomer_proto_depIdxs = []int32{
-	0, // 0: customer.Customer.UpdateDuration:input_type -> customer.UpdateDurationRequest
-	1, // 1: customer.Customer.UpdateDuration:output_type -> customer.UpdateDurationResponse
+	0, // 0: customer.UpdateCustomer.UpdateDuration:input_type -> customer.UpdateDurationRequest
+	1, // 1: customer.UpdateCustomer.UpdateDuration:output_type -> customer.UpdateDurationResponse
 	1, // [1:2] is the sub-list for method output_type
 	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
