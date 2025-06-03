@@ -9,14 +9,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/anhhuy1010/DATN-cms-customer/config"
 	"github.com/anhhuy1010/DATN-cms-customer/constant"
 	"github.com/anhhuy1010/DATN-cms-customer/grpc"
 	pbUsers "github.com/anhhuy1010/DATN-cms-customer/grpc/proto/users"
-	pbIdeas "github.com/anhhuy1010/DATN-cms-ideas/grpc/proto/idea"
+	"github.com/golang-jwt/jwt"
 
 	"github.com/anhhuy1010/DATN-cms-customer/helpers/respond"
 	"github.com/anhhuy1010/DATN-cms-customer/helpers/util"
-	"github.com/anhhuy1010/DATN-cms-customer/middleware"
 	"github.com/anhhuy1010/DATN-cms-customer/models"
 	request "github.com/anhhuy1010/DATN-cms-customer/request/user"
 	"github.com/gin-gonic/gin"
@@ -571,64 +571,6 @@ func (userCtl UserController) Create(c *gin.Context) {
 	c.JSON(http.StatusOK, respond.Success(userData.Uuid, "create successfully"))
 }
 
-// //////////////////////////////////////////////////////////////////////////
-func (userCtl UserController) PostIdea(ctx *gin.Context) {
-	var req struct {
-		IdeasName      string `json:"ideas_name"`
-		Industry       string `json:"industry"`
-		ContentDetail  string `json:"content_detail"`
-		Price          int32  `json:"price"`
-		Image          string `json:"image"` // Client gửi base64 trực tiếp
-		Procedure      string `json:"is_procedure"`
-		Value_Benefits string `json:"value_benefits"`
-		Is_Intellect   int    `json:"is_intellect"`
-	}
-
-	// Parse JSON body
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
-		return
-	}
-
-	// Lấy claims từ middleware
-	claims, ok := middleware.ExtractClaims(ctx)
-	if !ok {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Không xác thực được người dùng"})
-		return
-	}
-
-	// Kiểm tra thông tin người dùng trong token
-	if claims.Uuid == "" || claims.UserName == "" || claims.Email == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu thông tin người dùng trong token"})
-		return
-	}
-
-	// Gọi gRPC đến IdeaService
-	grpcConn := grpc.GetInstance()
-	client := pbIdeas.NewIdeaServiceClient(grpcConn.IdeasConnect)
-
-	res, err := client.CreateIdea(context.Background(), &pbIdeas.CreateIdeaRequest{
-		IdeasName:     req.IdeasName,
-		Industry:      req.Industry,
-		ContentDetail: req.ContentDetail,
-		Price:         req.Price,
-		CustomerUuid:  claims.Uuid,
-		CustomerName:  claims.UserName,
-		CustomerEmail: claims.Email,
-	})
-
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Trả về kết quả
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": res.Message,
-		"uuid":    res.Uuid,
-	})
-}
-
 // //////////////////////////////////////////////////////////////////////////////
 func (userCtl UserController) MyProfile(c *gin.Context) {
 	claims, exists := c.Get("claims")
@@ -664,123 +606,87 @@ func (userCtl UserController) MyProfile(c *gin.Context) {
 	})
 }
 
-func (userCtl UserController) CreateRating(c *gin.Context) {
-	var input struct {
-		ExpertUuid string `json:"expert_uuid" binding:"required"`
-		Rating     int    `json:"rating" binding:"required,min=1,max=5"`
-		Comment    string `json:"comment"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// ✅ Lấy customer_id từ JWT
-	customerUuid, exists := c.Get("customer_uuid")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_uuid is missing"})
-		return
-	}
-
-	customerUuidStr, ok := customerUuid.(string)
-	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_uuid must be string"})
-		return
-	}
-	customerName, exists := c.Get("customer_name")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_name is missing"})
-		return
-	}
-	customerNameStr, ok := customerName.(string)
-	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_uuid must be string"})
-		return
-	}
-	rating := models.Rating{
-		Uuid:         util.GenerateUUID(),
-		CustomerUuid: customerUuidStr,
-		CustomerName: customerNameStr,
-		ExpertUuid:   input.ExpertUuid,
-		Rating:       input.Rating,
-		Comment:      input.Comment,
-		CreatedAt:    time.Now(),
-		IsDelete:     0,
-	}
-
-	_, err := rating.Insert()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu đánh giá"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Đánh giá đã được ghi nhận"})
-}
-
 // //////////////////////////////////////////////////////////////////////////
-func (userCtl UserController) ListRating(c *gin.Context) {
-	userModel := new(models.Rating)
-	var req request.GetListRatingRequest
-	var reqUri request.ExpertUriParam
+func (userCtl UserController) UpgradeCustomer(c *gin.Context) {
+	customerModel := new(models.Customer)
 
-	// BIND PATH PARAM
-	if err := c.ShouldBindUri(&reqUri); err != nil {
-		c.JSON(http.StatusBadRequest, respond.MissingParams())
+	// Lấy token từ header
+	tokenString := c.GetHeader("x-token")
+	fmt.Println("Token received:", tokenString)
+	if tokenString == "" {
+		log.Println("[ERROR] Missing token")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
 		return
 	}
 
-	// KIỂM TRA expert_uuid tồn tại
-	existCondition := bson.M{"expert_uuid": reqUri.ExpertUuid}
-	_, err := userModel.FindOne(existCondition)
+	// Parse và xác thực token
+	secret := config.GetConfig().GetString("server.secret_token")
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	})
+
+	if err != nil || !token.Valid {
+		log.Printf("[ERROR] Invalid token: %v\n", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: " + err.Error()})
+		return
+	}
+
+	// Lấy uuid, startday, endday từ claims
+	uuidStr, ok := claims["uuid"].(string)
+	if !ok {
+		log.Println("[ERROR] Token missing 'uuid'")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "token missing uuid"})
+		return
+	}
+
+	startStr, ok := claims["startday"].(string)
+	if !ok {
+		log.Println("[ERROR] Token missing 'startday'")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "token missing startday"})
+		return
+	}
+
+	endStr, ok := claims["endday"].(string)
+	if !ok {
+		log.Println("[ERROR] Token missing 'endday'")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "token missing endday"})
+		return
+	}
+
+	startTime, err := time.Parse(time.RFC3339, startStr)
 	if err != nil {
-		c.JSON(http.StatusNotFound, respond.ErrorCommon("Không tìm thấy đánh giá nào cho chuyên gia này"))
+		log.Println("[ERROR] Cannot parse startday:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid startday format"})
 		return
 	}
 
-	// BIND QUERY PARAM
-	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, respond.MissingParams())
-		return
-	}
-
-	// BUILD condition truy vấn đánh giá
-	cond := bson.M{"expert_uuid": reqUri.ExpertUuid}
-	if req.Rating != nil {
-		cond["rating"] = *req.Rating
-	}
-
-	// PAGINATION
-	optionsQuery, page, limit := models.GetPagingOption(req.Page, req.Limit, req.Sort)
-
-	// TRUY VẤN DỮ LIỆU
-	ratings, err := userModel.Pagination(c, cond, optionsQuery)
+	endTime, err := time.Parse(time.RFC3339, endStr)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, respond.ErrorCommon("Không thể lấy danh sách đánh giá"))
+		log.Println("[ERROR] Cannot parse endday:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid endday format"})
 		return
 	}
 
-	// FORMAT KẾT QUẢ
-	var respData []request.ListRatingResponse
-	for _, rating := range ratings {
-		res := request.ListRatingResponse{
-			Uuid:         rating.Uuid,
-			Rating:       rating.Rating,
-			Comment:      rating.Comment,
-			CustomerName: rating.CustomerName,
-			CustomerUuid: rating.CustomerUuid,
-		}
-		respData = append(respData, res)
-	}
+	log.Printf("[DEBUG] JWT Extracted - Uuid: %s | StartDay: %v | EndDay: %v\n", uuidStr, startTime, endTime)
 
-	// TÍNH TỔNG
-	total, err := userModel.Count(c, cond)
+	// Cập nhật DB
+	updatedCount, err := customerModel.UpdateCustomerUpgradeTime(uuidStr, startTime, endTime)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, respond.ErrorCommon("Không thể đếm số lượng đánh giá"))
+		log.Printf("[ERROR] Failed to update upgrade time: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể cập nhật thời gian nâng cấp người dùng"})
 		return
 	}
-	pages := int(math.Ceil(float64(total) / float64(limit)))
 
-	// TRẢ KẾT QUẢ
-	c.JSON(http.StatusOK, respond.SuccessPagination(respData, page, limit, pages, total))
+	if updatedCount == 0 {
+		log.Println("[WARN] No customer document was updated")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể cập nhật thời gian nâng cấp người dùng"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":  "customer upgraded successfully",
+		"startday": startTime.Format(time.RFC3339),
+		"endday":   endTime.Format(time.RFC3339),
+	})
 }

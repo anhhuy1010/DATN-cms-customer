@@ -2,10 +2,12 @@ package models
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/anhhuy1010/DATN-cms-customer/database"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 
@@ -205,4 +207,23 @@ func (u *Customer) FindCustomerByEmail(ctx context.Context, email string) (*Cust
 		return nil, err
 	}
 	return &customer, nil
+}
+
+func (u *Customer) UpdateCustomerUpgradeTime(Uuid string, StartDay time.Time, EndDay time.Time) (int64, error) {
+	coll := u.Model()
+
+	filter := bson.M{"uuid": Uuid}
+	update := bson.M{
+		"$set": bson.M{
+			"startday": StartDay,
+			"endday":   EndDay,
+		},
+	}
+
+	result, err := coll.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return 0, fmt.Errorf("failed to update customer upgrade time: %w", err)
+	}
+
+	return result.ModifiedCount, nil
 }
