@@ -42,6 +42,7 @@ func RouteInit(engine *gin.Engine) {
 	apiV1.POST("/customer/sign", userCtr.SignUp)
 	apiV1.POST("/customer/verify-otp", userCtr.VerifyOTP)
 	apiV1.GET("/customer", userCtr.List)
+	apiV1.POST("/customer/update-payment", userCtr.UpgradeCustomer)
 
 	apiV1.Use(middleware.RequestLog())
 
@@ -49,7 +50,6 @@ func RouteInit(engine *gin.Engine) {
 	protected := apiV1.Group("/")
 	protected.Use(controllers.RoleMiddleware())
 	{
-
 		protected.GET("/customer/my-profile", userCtr.MyProfile)
 		protected.GET("/customer/:uuid", userCtr.Detail)
 		protected.POST("/customer", userCtr.Create)
@@ -57,10 +57,12 @@ func RouteInit(engine *gin.Engine) {
 		protected.PUT("/customer/:uuid/update-status", userCtr.UpdateStatus)
 		protected.DELETE("/customer/:uuid", userCtr.Delete)
 		protected.POST("/customer/logout", userCtr.Logout)
-		protected.POST("/customer/post-idea", userCtr.PostIdea)
+
 		///////////////////////////////////////////////////////////////////////////////
-		protected.POST("/customer/rating", userCtr.CreateRating)
-		protected.GET("/customer/rating/:expert_uuid", userCtr.ListRating)
+	}
+	protected1 := apiV1.Group("/")
+	protected1.Use(middleware.RoleMiddleware())
+	{
 
 	}
 

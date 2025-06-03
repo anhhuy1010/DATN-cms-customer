@@ -15,8 +15,6 @@ import (
 	"github.com/anhhuy1010/DATN-cms-customer/routes"
 	"github.com/anhhuy1010/DATN-cms-customer/services/logService"
 
-	pbCustomer "github.com/anhhuy1010/DATN-cms-customer/grpc/proto/customer"
-	pbUpdateCustomer "github.com/anhhuy1010/DATN-cms-customer/grpc/proto/updatecustomer"
 	pbUserr "github.com/anhhuy1010/DATN-cms-customer/grpc/proto/users"
 	"github.com/gin-gonic/gin"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -91,8 +89,6 @@ func StartGRPC(port string) error {
 	// register service
 	server = grpc.NewServer()
 	pbUserr.RegisterUserServer(server, service.NewUserServer())
-	pbCustomer.RegisterCustomerServer(server, service.NewCustomerServer())
-	pbUpdateCustomer.RegisterUpdateCustomerServer(server, service.NewUpdateCustomerServer(database.GetInstance().Collection("customers")))
 	// start gRPC server
 	fmt.Println("starting gRPC server... port: ", port)
 
