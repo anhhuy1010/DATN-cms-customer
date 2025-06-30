@@ -42,7 +42,10 @@ func RouteInit(engine *gin.Engine) {
 	apiV1.POST("/customer/sign", userCtr.SignUp)
 	apiV1.POST("/customer/verify-otp", userCtr.VerifyOTP)
 	apiV1.GET("/customer", userCtr.List)
+	apiV1.PUT("/customer/:uuid/update-status", userCtr.UpdateStatus)
 	apiV1.POST("/customer/update-payment", userCtr.UpgradeCustomer)
+	apiV1.GET("/customer/get-info/:uuid", userCtr.GetInfo)
+	apiV1.GET("/customer/count", userCtr.CountForAdmin)
 
 	apiV1.Use(middleware.RequestLog())
 
@@ -54,7 +57,6 @@ func RouteInit(engine *gin.Engine) {
 		protected.GET("/customer/:uuid", userCtr.Detail)
 		protected.POST("/customer", userCtr.Create)
 		protected.PUT("/customer/:uuid", userCtr.Update)
-		protected.PUT("/customer/:uuid/update-status", userCtr.UpdateStatus)
 		protected.DELETE("/customer/:uuid", userCtr.Delete)
 		protected.POST("/customer/logout", userCtr.Logout)
 

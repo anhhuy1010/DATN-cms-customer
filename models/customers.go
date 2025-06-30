@@ -227,3 +227,43 @@ func (u *Customer) UpdateCustomerUpgradeTime(Uuid string, StartDay time.Time, En
 
 	return result.ModifiedCount, nil
 }
+func (u *Customer) PaginationAdmin(ctx context.Context, conditions map[string]interface{}, modelOptions ...ModelOption) ([]*Customer, error) {
+	coll := u.Model()
+
+	modelOpt := ModelOption{}
+	findOptions := modelOpt.GetOption(modelOptions)
+	cursor, err := coll.Find(context.TODO(), conditions, findOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	var users []*Customer
+	for cursor.Next(context.TODO()) {
+		var elem Customer
+		err := cursor.Decode(&elem)
+		if err != nil {
+			log.Println("[Decode] PopularCuisine:", err)
+			log.Println("-> #", elem.Uuid)
+			continue
+		}
+
+		users = append(users, &elem)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+	_ = cursor.Close(context.TODO())
+
+	return users, nil
+}
+func (u *Customer) FindOneAdmin(conditions map[string]interface{}) (*Customer, error) {
+	coll := u.Model()
+
+	err := coll.FindOne(context.TODO(), conditions).Decode(&u)
+	if err != nil {
+		return nil, err
+	}
+
+	return u, nil
+}
