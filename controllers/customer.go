@@ -182,13 +182,13 @@ func (userCtl UserController) Login(c *gin.Context) {
 	user, err := userModel.FindOne(condition)
 	if err != nil {
 		fmt.Println(err.Error())
-		c.JSON(http.StatusBadRequest, respond.ErrorCommon("không tìm thấy người dùng!"))
+		c.JSON(http.StatusBadRequest, respond.ErrorCommon("Tên đăng nhập hoặc mật khẩu không đúng"))
 		return
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
 		fmt.Println(err.Error())
-		c.JSON(http.StatusBadRequest, respond.ErrorCommon("wrong password"))
+		c.JSON(http.StatusBadRequest, respond.ErrorCommon("Tên đăng nhập hoặc mật khẩu không đúng"))
 		return
 	}
 
@@ -212,7 +212,7 @@ func (userCtl UserController) Login(c *gin.Context) {
 		c.JSON(http.StatusOK, respond.UpdatedFail())
 		return
 	}
-	c.JSON(http.StatusOK, respond.Success(request.LoginResponse{Token: token}, "login successfully"))
+	c.JSON(http.StatusOK, respond.Success(request.LoginResponse{Token: token}, "Đăng nhập thành công!"))
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -236,7 +236,7 @@ func (userCtl UserController) Logout(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+	c.JSON(http.StatusOK, respond.Success(nil, "Logged out successfully"))
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -329,17 +329,38 @@ func (userCtl UserController) List(c *gin.Context) {
 	if req.Username != nil {
 		cond["username"] = req.Username
 	}
+	if req.Username != nil {
+		cond["username"] = bson.M{
+			"$regex":   *req.Username,
+			"$options": "i",
+		}
+	}
+	if c.Query("is_active") != "" && req.IsActive != nil {
+		cond["is_active"] = *req.IsActive
+	}
 
-	if req.IsActive != nil {
-		cond["is_active"] = req.IsActive
+	if c.Query("is_delete") != "" && req.IsDelete != nil {
+		cond["is_delete"] = *req.IsDelete
+	}
+	if req.StartDay != nil && *req.StartDay != "" {
+		if *req.StartDay == "free" {
+			cond["startday"] = bson.M{"$eq": nil}
+		} else if *req.StartDay == "premium" {
+			cond["startday"] = bson.M{"$ne": nil}
+		}
 	}
 
 	optionsQuery, page, limit := models.GetPagingOption(req.Page, req.Limit, req.Sort)
 	var respData []request.ListResponse
-	users, err := userModel.Pagination(c, cond, optionsQuery)
+	users, err := userModel.PaginationAdmin(c, cond, optionsQuery)
 	if err != nil {
 		fmt.Println(err.Error())
 		c.JSON(http.StatusBadRequest, respond.MissingParams())
+		return
+	}
+
+	if len(users) == 0 {
+		c.JSON(http.StatusOK, respond.SuccessPagination([]request.ListResponse{}, page, limit, 0, 0))
 		return
 	}
 	for _, user := range users {
@@ -347,6 +368,10 @@ func (userCtl UserController) List(c *gin.Context) {
 			Uuid:     user.Uuid,
 			IsActive: user.IsActive,
 			UserName: user.UserName,
+			Email:    user.Email,
+			IsDelete: user.IsDelete,
+			StartDay: user.StartDay,
+			EndDay:   user.EndDay,
 		}
 		respData = append(respData, res)
 	}
@@ -505,6 +530,7 @@ func (userCtl UserController) UpdateStatus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, respond.MissingParams())
 		return
 	}
+
 	var req request.UpdateStatusRequest
 	err = c.ShouldBindJSON(&req)
 	if err != nil {
@@ -513,27 +539,33 @@ func (userCtl UserController) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	if *req.IsActive < 0 || *req.IsActive > 1 {
-		c.JSON(http.StatusBadRequest, respond.ErrorCommon("Stauts just can be set in range [0..1]"))
-		return
-	}
-
 	condition := bson.M{"uuid": reqUri.Uuid}
-	user, err := userModel.FindOne(condition)
+	user, err := userModel.FindOneAdmin(condition)
 	if err != nil {
 		fmt.Println(err.Error())
-		c.JSON(http.StatusBadRequest, respond.ErrorCommon("User no found!"))
+		c.JSON(http.StatusNotFound, respond.ErrorCommon("User not found!"))
+		return
+	}
+	if user.IsDelete == 1 && req.IsActive != nil {
+		c.JSON(http.StatusBadRequest, respond.ErrorCommon("Cannot update is_active of a deleted user"))
 		return
 	}
 
-	user.IsActive = *req.IsActive
+	// Cập nhật trạng thái nếu có
+	if req.IsActive != nil {
+		user.IsActive = *req.IsActive
+	}
+	if req.IsDelete != nil {
+		user.IsDelete = *req.IsDelete
+	}
 
-	_, err = user.Update()
-	if err != nil {
+	// Cập nhật DB
+	if _, err := user.Update(); err != nil {
 		fmt.Println(err.Error())
-		c.JSON(http.StatusBadRequest, respond.UpdatedFail())
+		c.JSON(http.StatusInternalServerError, respond.UpdatedFail())
 		return
 	}
+
 	c.JSON(http.StatusOK, respond.Success(user.Uuid, "update successfully"))
 }
 
@@ -668,8 +700,6 @@ func (userCtl UserController) UpgradeCustomer(c *gin.Context) {
 		return
 	}
 
-	log.Printf("[DEBUG] JWT Extracted - Uuid: %s | StartDay: %v | EndDay: %v\n", uuidStr, startTime, endTime)
-
 	// Cập nhật DB
 	updatedCount, err := customerModel.UpdateCustomerUpgradeTime(uuidStr, startTime, endTime)
 	if err != nil {
@@ -689,4 +719,62 @@ func (userCtl UserController) UpgradeCustomer(c *gin.Context) {
 		"startday": startTime.Format(time.RFC3339),
 		"endday":   endTime.Format(time.RFC3339),
 	})
+}
+
+// /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+func (userCtl UserController) GetInfo(c *gin.Context) {
+	userModel := models.Customer{}
+	var reqUri request.GetInfolUri
+	err := c.ShouldBindUri(&reqUri)
+	if err != nil {
+		_ = c.Error(err)
+		c.JSON(http.StatusBadRequest, respond.MissingParams())
+		return
+	}
+	cond := bson.M{"uuid": reqUri.Uuid}
+
+	user, err := userModel.FindOne(cond)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Không tìm thấy người dùng"})
+		return
+	}
+	response := request.GetInfoResponse{
+		Username: user.UserName,
+		Image:    user.Image,
+		Email:    user.Email,
+	}
+	c.JSON(http.StatusOK, respond.Success(response, "Successfully"))
+}
+
+// ////////////////////////////////////////////////////////////////////////////////
+func (userCtl UserController) CountForAdmin(c *gin.Context) {
+	userModel := new(models.Customer)
+
+	// Đếm tổng số ý tưởng
+	total, err := userModel.Count(c, bson.M{})
+	if err != nil {
+		_ = c.Error(err)
+		c.JSON(http.StatusBadRequest, respond.MissingParams())
+		return
+	}
+	cond := bson.M{
+		"startday": bson.M{
+			"$exists": true,
+			"$ne":     nil,
+		},
+	}
+	totalpremium, err := userModel.Count(c, cond)
+	if err != nil {
+		_ = c.Error(err)
+		c.JSON(http.StatusBadRequest, respond.MissingParams())
+		return
+	}
+
+	// Trả kết quả gộp
+	result := gin.H{
+		"total":         total,
+		"total_premium": totalpremium,
+	}
+
+	c.JSON(http.StatusOK, respond.Success(result, "Thống kê ý tưởng"))
 }

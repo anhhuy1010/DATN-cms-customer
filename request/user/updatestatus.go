@@ -5,6 +5,7 @@ type (
 		Uuid string `uri:"uuid"`
 	}
 	UpdateStatusRequest struct {
-		IsActive *int `json:"is_active" binding:"required"`
+		IsActive *int `json:"is_active"`
+		IsDelete *int `json:"is_delete"`
 	}
 )
